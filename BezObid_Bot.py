@@ -1,3 +1,71 @@
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+
+torch.set_printoptions(sci_mode=False)
+
+X = torch.arange(-5,5,0.1)
+w = torch.tensor(-12.0, requires_grad=True)
+
+y = 3 * X
+
+Y = y + 0.5 * torch.randn(X.size())
+
+
+def forward(x):
+    return w * x
+
+def criterion(yhat,y):
+    return torch.mean((yhat - y)**2)
+
+
+def train_model(iteration_counter, lr):
+    w_history = []
+    loss_history = []
+
+    for epoch in range(iteration_counter):
+        Yhat = forward(X)
+        loss = criterion(Yhat, y)  # Вычисляем ошибку
+
+        loss.backward()
+
+        w.data = w.data - lr * w.grad  # Обновляем параметр w
+        w.grad.zero_()  # Обнуляем градиент перед следующей итерацией
+
+        w_history.append(w.item())
+        loss_history.append(loss.item())
+
+        print(f"Иттерация {epoch+1}: w = {w.item()}, Ошибка = {loss.item()}")
+
+        if loss.item() < 1e-60:
+            break
+    return w_history, loss_history
+
+
+w_history, loss_history = train_model(50, lr=0.05)
+
+plt.figure(figsize=(12, 5))
+
+# График изменения w
+plt.subplot(1, 2, 1)
+plt.plot(w_history, label="w в процессе обучения")
+plt.axhline(y=-980, color='r', linestyle='--', label="Истинное w = 3")
+plt.xlabel("Итерации")
+plt.ylabel("Значение w")
+plt.title("Сходимость w")
+plt.legend()
+
+# График уменьшения ошибки
+plt.subplot(1, 2, 2)
+plt.plot(loss_history, label="Ошибка MSE")
+plt.xlabel("Итерации")
+plt.ylabel("Ошибка")
+plt.title("Уменьшение ошибки")
+plt.legend()
+
+plt.show()
+
+
 from openai import OpenAI
 from flask import Flask, request
 from langdetect import detect
@@ -14,6 +82,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 with open("data.json", "r") as file:
     user_ids = json.load(file)  
     # Loading the file contents into the user_ids variable
+
 
 def thread_setup(userID):
     """ The function returns the user's thread ID """
@@ -88,6 +157,7 @@ def detect_language(text):
         return language
     except Exception as e:
         return f"Error while determining the language: {e}"
+    
 
 app = Flask(__name__)
 
@@ -97,6 +167,11 @@ def webhook():
         # Retrieving JSON data from Telegram
         data = request.json
         chat_id = data["message"]["chat"]["id"]
+
+        if "message" not in data or "text" not in data["message"]:
+            send_message(chat_id, "Я принимаю только текст")
+            return {"status": "ok"}, 200
+
         text = str(data["message"]["text"])
         userID = str(data["message"]["from"]["id"])
         language = detect_language(text)
@@ -133,5 +208,5 @@ def webhook():
         print("Processing error:", e)
         return {"status": "error"}, 500
 
-# Starts the Flask server on port 5000
-app.run(port=5000)
+# Starts the Flask server on port 8443
+app.run(port=8443)
